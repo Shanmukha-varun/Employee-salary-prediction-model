@@ -11,27 +11,24 @@ EXACT_MODEL_INPUT_COLUMNS = ['age', 'fnlwgt', 'educational-num', 'capital-gain',
 
 
 # --- 1. Load the Trained Model ---
-# Ensure your model file is in the same directory as this app.py
 try:
-    # Your saved model is a pipeline: ('scaler', StandardScaler()), ('model', GradientBoostingClassifier())
-    # This implies that the data fed into this pipeline during training was ALREADY one-hot encoded.
     model_pipeline = joblib.load('best_model_pipeline_GradientBoosting.joblib')
     st.success("Model loaded successfully!")
 except FileNotFoundError:
     st.error("Error: Model file 'best_model_pipeline_GradientBoosting.joblib' not found. "
              "Please ensure it's in the same directory as app.py.")
-    st.stop() # Stop the app if model is not found
+    st.stop()
 
 # --- 2. Define Expected Feature Categories for Raw Input ---
-# These are the *original* column names before any encoding.
 numerical_cols = ['age', 'fnlwgt', 'educational-num', 'capital-gain', 'capital-loss', 'hours-per-week']
 categorical_cols = ['workclass', 'marital-status', 'occupation', 'relationship', 'race', 'gender', 'native-country']
 
-# Options for Streamlit selectboxes - These must contain ALL categories present in your training data
-# from the 'raw' (unencoded) categorical columns.
-workclass_options = ['Private', 'Self-emp-not-inc', 'Local-gov', 'State-gov', 'Self-emp-inc', 'Federal-gov', 'Without-pay', 'Never-worked']
+# Options for Streamlit selectboxes - IMPORTANT: Ensure these include ALL categories
+# from your original training data, including any 'Others' categories if they were
+# created by a preprocessing step during training.
+workclass_options = ['Private', 'Self-emp-not-inc', 'Local-gov', 'State-gov', 'Self-emp-inc', 'Federal-gov', 'Without-pay', 'Never-worked', 'Others'] # Added 'Others'
 marital_status_options = ['Married-civ-spouse', 'Divorced', 'Never-married', 'Separated', 'Widowed', 'Married-spouse-absent', 'Married-AF-spouse']
-occupation_options = ['Prof-specialty', 'Craft-repair', 'Exec-managerial', 'Adm-clerical', 'Sales', 'Other-service', 'Machine-op-inspct', 'Transport-moving', 'Handlers-cleaners', 'Farming-fishing', 'Tech-support', 'Protective-serv', 'Priv-house-serv', 'Armed-Forces']
+occupation_options = ['Prof-specialty', 'Craft-repair', 'Exec-managerial', 'Adm-clerical', 'Sales', 'Other-service', 'Machine-op-inspct', 'Transport-moving', 'Handlers-cleaners', 'Farming-fishing', 'Tech-support', 'Protective-serv', 'Priv-house-serv', 'Armed-Forces', 'Others'] # Added 'Others'
 relationship_options = ['Husband', 'Not-in-family', 'Own-child', 'Unmarried', 'Wife', 'Other-relative']
 race_options = ['White', 'Black', 'Asian-Pac-Islander', 'Amer-Indian-Eskimo', 'Other']
 gender_options = ['Male', 'Female']
@@ -39,26 +36,51 @@ native_country_options = ['United-States', 'Mexico', 'Philippines', 'Germany', '
 
 
 # --- 3. Define the Preprocessor for One-Hot Encoding Raw Input ---
-# This ColumnTransformer will apply OneHotEncoder to categorical columns
-# and pass through numerical columns.
 preprocessor = ColumnTransformer(
     transformers=[
         ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_cols)
     ],
-    remainder='passthrough' # Keep numerical columns (these will appear *after* OHE columns in output)
+    remainder='passthrough' # Keep numerical columns
 )
 
-# To ensure the preprocessor learns the correct column names and order for OHE,
-# we fit it on a dummy DataFrame that mimics your raw training data's structure.
-sample_data_for_preprocessor_fit = pd.DataFrame({
-    'age': [30], 'fnlwgt': [178300], 'educational-num': [9], 'capital-gain': [0],
-    'capital-loss': [0], 'hours-per-week': [40],
-    'workclass': ['Private'], 'marital-status': ['Never-married'], 'occupation': ['Prof-specialty'],
-    'relationship': ['Not-in-family'], 'race': ['White'], 'gender': ['Male'],
-    'native-country': ['United-States']
-})
-# Ensure the dummy data's columns are in the correct order for the preprocessor
+# --- Create a more comprehensive dummy DataFrame for preprocessor fit ---
+# This ensures OneHotEncoder learns all possible categories and generates their columns.
+dummy_rows_for_fit = []
+base_numerical_values = {col: 0 for col in numerical_cols} # Default numerical values
+
+# Map categorical column names to their options lists for easy lookup
+all_categorical_options = {
+    'workclass': workclass_options,
+    'marital-status': marital_status_options,
+    'occupation': occupation_options,
+    'relationship': relationship_options,
+    'race': race_options,
+    'gender': gender_options,
+    'native-country': native_country_options
+}
+
+# Add a row for each category of each categorical feature
+for cat_col in categorical_cols:
+    if cat_col in all_categorical_options:
+        for option in all_categorical_options[cat_col]:
+            row = base_numerical_values.copy()
+            row[cat_col] = option
+            # For other categorical columns, use their first option as default
+            for other_cat_col in categorical_cols:
+                if other_cat_col != cat_col:
+                    if all_categorical_options.get(other_cat_col):
+                        row[other_cat_col] = all_categorical_options[other_cat_col][0]
+            dummy_rows_for_fit.append(row)
+
+# Add a base row if there are no categorical columns or for general fitting
+if not dummy_rows_for_fit:
+    dummy_rows_for_fit.append({col: 0 for col in numerical_cols + categorical_cols})
+
+sample_data_for_preprocessor_fit = pd.DataFrame(dummy_rows_for_fit)
+# Ensure columns are in the expected order for fitting the preprocessor
 sample_data_for_preprocessor_fit = sample_data_for_preprocessor_fit[numerical_cols + categorical_cols]
+
+# Fit the preprocessor on the comprehensive dummy data
 preprocessor.fit(sample_data_for_preprocessor_fit)
 
 
@@ -98,7 +120,7 @@ input_data_raw = pd.DataFrame({
     'educational-num': [educational_num],
     'capital-gain': [capital_gain],
     'capital-loss': [capital_loss],
-    'hours-per-week': [hours_per_week], # Ensure correct spelling with hyphen
+    'hours-per-week': [hours_per_week],
     'workclass': [workclass],
     'marital-status': [marital_status],
     'occupation': [occupation],
@@ -108,8 +130,7 @@ input_data_raw = pd.DataFrame({
     'native-country': [native_country]
 })
 
-# Reorder columns of the raw input to match what the 'preprocessor' expects (numerical + categorical)
-# This order is important for the ColumnTransformer to correctly identify numerical and categorical features.
+# Reorder columns of the raw input to match what the 'preprocessor' expects
 input_data_raw = input_data_raw[numerical_cols + categorical_cols]
 
 
@@ -118,22 +139,41 @@ if st.button("Predict Income"):
     # Apply the one-hot encoding using the fitted preprocessor
     transformed_input_array = preprocessor.transform(input_data_raw)
 
-    # Get the feature names as output by the preprocessor (OHE columns first, then numerical passthrough)
-    preprocessor_output_feature_names = preprocessor.get_feature_names_out()
+    # Get the feature names as output by the preprocessor (e.g., 'cat__workclass_Private', 'remainder__age')
+    preprocessor_raw_output_feature_names = preprocessor.get_feature_names_out()
 
-    # --- DEBUG LINE: Print the actual columns generated by the preprocessor ---
-    st.write(f"**DEBUG: Columns generated by preprocessor:** {list(preprocessor_output_feature_names)}")
-    st.write(f"**DEBUG: Expected model input columns:** {EXACT_MODEL_INPUT_COLUMNS}") # Also print expected for comparison
+    # --- Step 1: Remove prefixes (cat__ and remainder__) ---
+    # Create a mapping from raw ColumnTransformer output names to desired names
+    cleaned_output_feature_names = []
+    for col_name in preprocessor_raw_output_feature_names:
+        if col_name.startswith('cat__'):
+            cleaned_output_feature_names.append(col_name.replace('cat__', ''))
+        elif col_name.startswith('remainder__'):
+            cleaned_output_feature_names.append(col_name.replace('remainder__', ''))
+        else:
+            cleaned_output_feature_names.append(col_name) # Should not happen with current setup
 
-    # Create an unordered DataFrame from the preprocessor's output
-    processed_input_df_unordered = pd.DataFrame(transformed_input_array, columns=preprocessor_output_feature_names)
+    # Create an unordered DataFrame from the preprocessor's output with cleaned names
+    processed_input_df_unordered = pd.DataFrame(transformed_input_array, columns=cleaned_output_feature_names)
 
-    # Reorder the columns of this DataFrame to EXACTLY match the order your model was trained on.
-    # This is the most critical step for the ValueError.
-    processed_input_df = processed_input_df_unordered[EXACT_MODEL_INPUT_COLUMNS]
+    # --- DEBUG: Print the actual columns generated by the preprocessor (after cleaning prefixes) ---
+    st.write(f"**DEBUG: Columns generated by preprocessor (cleaned):** {list(processed_input_df_unordered.columns)}")
+    st.write(f"**DEBUG: Expected model input columns:** {EXACT_MODEL_INPUT_COLUMNS}")
+
+
+    # --- Step 2: Reorder and align columns to match EXACT_MODEL_INPUT_COLUMNS ---
+    # This creates a new DataFrame with the target columns.
+    # Columns present in processed_input_df_unordered but not in EXACT_MODEL_INPUT_COLUMNS will be dropped.
+    # Columns in EXACT_MODEL_INPUT_COLUMNS not present in processed_input_df_unordered
+    # will be added as NaN and then filled with 0. This handles cases where a OHE column
+    # isn't generated for a specific user input (e.g., if a category isn't selected).
+    processed_input_df = processed_input_df_unordered.reindex(columns=EXACT_MODEL_INPUT_COLUMNS, fill_value=0)
+
+    # Make prediction using the loaded pipeline (which handles StandardScaler and then the model)
+    prediction = model_pipeline.predict(processed_input_df)
 
     st.subheader("Prediction Result:")
-    if prediction[0] == True: # Assuming True maps to '>50K' based on your y target
+    if prediction[0] == True:
         st.success("The model predicts this individual's income is **>50K** 🎉")
     else:
         st.info("The model predicts this individual's income is **<=50K** 😔")

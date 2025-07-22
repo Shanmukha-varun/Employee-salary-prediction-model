@@ -39,7 +39,7 @@ The core problem addressed is the subjective and inefficient nature of manually 
 
 ## 📊 Model Performance (Gradient Boosting Classifier)
 
-* **Accuracy:** Approximately 86.2%.
+* **Accuracy:** Approximately 84.11%.
 * Further evaluation metrics like `classification_report` and `confusion_matrix` are available in the Jupyter Notebook.
 
 ## 🚀 How to Run the App Locally

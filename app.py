@@ -452,10 +452,10 @@ if st.button("🔮 Predict Income Level", key="predict_btn"):
 st.markdown("---")
 current_date = datetime.now().strftime('%B %Y')
 st.markdown(f"""
-<div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; margin-top: 2rem;">
-    <h4>⚠️ Important Disclaimer</h4>
-    <p>This AI prediction is based on historical data and machine learning algorithms. 
+<div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; margin-top: 2rem; border: 1px solid #dee2e6;">
+    <h4 style="color: #495057; margin-bottom: 1rem;">⚠️ Important Disclaimer</h4>
+    <p style="color: #6c757d; font-size: 1rem; line-height: 1.6; margin-bottom: 1rem;">This AI prediction is based on historical data and machine learning algorithms. 
     It should be used for educational and analytical purposes only, not as financial or career advice.</p>
-    <p><strong>Model Last Updated:</strong> {current_date} | <strong>Algorithm:</strong> Gradient Boosting Classifier</p>
+    <p style="color: #495057; font-weight: 600; font-size: 0.9rem;"><strong>Model Last Updated:</strong> {current_date} | <strong>Algorithm:</strong> Gradient Boosting Classifier</p>
 </div>
 """, unsafe_allow_html=True)

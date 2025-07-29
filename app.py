@@ -450,11 +450,12 @@ if st.button("🔮 Predict Income Level", key="predict_btn"):
 
 # --- Footer ---
 st.markdown("---")
-st.markdown("""
+current_date = datetime.now().strftime('%B %Y')
+st.markdown(f"""
 <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 10px; margin-top: 2rem;">
     <h4>⚠️ Important Disclaimer</h4>
     <p>This AI prediction is based on historical data and machine learning algorithms. 
     It should be used for educational and analytical purposes only, not as financial or career advice.</p>
-    <p><strong>Model Last Updated:</strong> {datetime.now().strftime('%B %Y')} | <strong>Algorithm:</strong> Gradient Boosting Classifier</p>
+    <p><strong>Model Last Updated:</strong> {current_date} | <strong>Algorithm:</strong> Gradient Boosting Classifier</p>
 </div>
-""".format(datetime=datetime), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
